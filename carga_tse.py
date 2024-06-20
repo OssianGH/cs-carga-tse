@@ -12,10 +12,12 @@ import time
 class Selector(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.mes = ""
-        self.directorio = ""
+        self.mes = None
+        self.directorio = None
         self.mes_int = None
         self.year = None
+        self.hoja_potencia = None
+        self.hoja_tension = None
         self.__meses = [
             "Enero",
             "Febrero",
@@ -31,81 +33,121 @@ class Selector(tk.Tk):
             "Diciembre",
         ]
         self.title("Seleccione el directorio y el mes de análisis")
-        self.geometry(self.__centrar(570, 210))
+        self.geometry(self.__centrar(700, 300))
         self.protocol("WM_DELETE_WINDOW", self.__al_cerrar)
+        self.bind("<Return>", self.__presionado_enter)
+        self.bind("<Escape>", self.__presionado_escape)
 
-        self.__frame1 = tk.Frame(master=self, bg="#dff9fb")
-        self.__frame1.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
+        self.__frm_superior = tk.Frame(master=self, bg="#dff9fb")
+        self.__frm_superior.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
 
-        self.__frame2 = tk.Frame(master=self, bg="#c7ecee")
-        self.__frame2.pack(fill=tk.BOTH, side=tk.TOP)
+        self.__frm_inferior = tk.Frame(master=self, bg="#c7ecee")
+        self.__frm_inferior.pack(fill=tk.BOTH, side=tk.TOP)
 
-        self.__frame3 = tk.Frame(master=self.__frame1, bg="#dff9fb")
-        self.__frame3.pack(fill=tk.BOTH, side=tk.LEFT, padx=30, pady=30)
+        self.__frm_labels = tk.Frame(master=self.__frm_superior, bg="#dff9fb")
+        self.__frm_labels.pack(fill=tk.BOTH, side=tk.LEFT, padx=30, pady=30)
 
-        self.__frame4 = tk.Frame(master=self.__frame1, bg="#dff9fb")
-        self.__frame4.pack(fill=tk.BOTH, side=tk.LEFT, padx=30, pady=30, expand=True)
-
-        self.__label1 = tk.Label(
-            master=self.__frame3, bg="#dff9fb", text="Mes:", anchor=tk.W
+        self.__frm_inputs = tk.Frame(master=self.__frm_superior, bg="#dff9fb")
+        self.__frm_inputs.pack(
+            fill=tk.BOTH, side=tk.LEFT, padx=30, pady=30, expand=True
         )
-        self.__label1.pack(fill=tk.X, side=tk.TOP, expand=True)
 
-        self.__combobox1 = ttk.Combobox(
-            master=self.__frame4, state="readonly", values=self.__meses
+        self.__lbl_mes = tk.Label(
+            master=self.__frm_labels, bg="#dff9fb", text="Mes:", anchor=tk.W
         )
-        self.__combobox1.pack(fill=tk.X, side=tk.TOP, expand=True)
-        self.__combobox1.bind("<<ComboboxSelected>>", self.__actualizar_mes)
+        self.__lbl_mes.pack(fill=tk.X, side=tk.TOP, expand=True)
 
-        self.__label4 = tk.Label(
-            master=self.__frame3,
+        self.__cbx_mes = ttk.Combobox(
+            master=self.__frm_inputs, state="readonly", values=self.__meses
+        )
+        self.__cbx_mes.pack(fill=tk.X, side=tk.TOP, expand=True)
+        self.__cbx_mes.bind("<<ComboboxSelected>>", self.__actualizar_mes)
+
+        self.__lbl_year = tk.Label(
+            master=self.__frm_labels,
             bg="#dff9fb",
             text="Año:",
             pady=3.8,
             anchor=tk.W,
         )
-        self.__label4.pack(fill=tk.X, side=tk.TOP, expand=True)
+        self.__lbl_year.pack(fill=tk.X, side=tk.TOP, expand=True)
 
-        self.__combobox2 = ttk.Combobox(
-            master=self.__frame4, state="readonly", values=list(range(2014, 2035))
+        self.__cbx_year = ttk.Combobox(
+            master=self.__frm_inputs, state="readonly", values=list(range(2014, 2035))
         )
-        self.__combobox2.pack(fill=tk.X, side=tk.TOP, expand=True)
-        self.__combobox2.bind("<<ComboboxSelected>>", self.__actualizar_year)
+        self.__cbx_year.pack(fill=tk.X, side=tk.TOP, expand=True)
+        self.__cbx_year.bind("<<ComboboxSelected>>", self.__actualizar_year)
 
-        self.__label2 = tk.Label(
-            master=self.__frame3,
+        self.__lbl_hoja_potencia = tk.Label(
+            master=self.__frm_labels,
+            bg="#dff9fb",
+            text="Hoja de potencia:",
+            pady=3.8,
+            anchor=tk.W,
+        )
+        self.__lbl_hoja_potencia.pack(fill=tk.X, side=tk.TOP, expand=True)
+
+        self.__txt_hoja_potencia = tk.Entry(
+            master=self.__frm_inputs,
+            relief="flat",
+            highlightthickness=1,
+            highlightbackground="gray",
+        )
+        self.__txt_hoja_potencia.pack(fill=tk.X, side=tk.TOP, expand=True)
+        self.__txt_hoja_potencia.bind("<KeyRelease>", self.__actualizar_hoja_potencia)
+
+        self.__lbl_hoja_tension = tk.Label(
+            master=self.__frm_labels,
+            bg="#dff9fb",
+            text="Hoja de tension:",
+            pady=3.8,
+            anchor=tk.W,
+        )
+        self.__lbl_hoja_tension.pack(fill=tk.X, side=tk.TOP, expand=True)
+
+        self.__txt_hoja_tension = tk.Entry(
+            master=self.__frm_inputs,
+            relief="flat",
+            highlightthickness=1,
+            highlightbackground="gray",
+        )
+        self.__txt_hoja_tension.pack(fill=tk.X, side=tk.TOP, expand=True)
+        self.__txt_hoja_tension.bind("<KeyRelease>", self.__actualizar_hoja_tension)
+
+        self.__lbl_directorio = tk.Label(
+            master=self.__frm_labels,
             bg="#dff9fb",
             text="Directorio:",
             pady=3.8,
             anchor=tk.W,
         )
-        self.__label2.pack(fill=tk.X, side=tk.TOP, expand=True)
+        self.__lbl_directorio.pack(fill=tk.X, side=tk.TOP, expand=True)
 
-        self.__frame5 = tk.Frame(master=self.__frame4, bg="#dff9fb")
-        self.__frame5.pack(fill=tk.X, side=tk.TOP, expand=True)
+        self.__frm_directorio = tk.Frame(master=self.__frm_inputs, bg="#dff9fb")
+        self.__frm_directorio.pack(fill=tk.X, side=tk.TOP, expand=True)
 
-        self.__button1 = tk.Button(
-            master=self.__frame5,
+        self.__btn_directorio = tk.Button(
+            master=self.__frm_directorio,
             text="Seleccionar...",
             padx=10,
             command=self.__actualizar_directorio,
         )
-        self.__button1.pack(fill=tk.BOTH, side=tk.LEFT)
+        self.__btn_directorio.pack(fill=tk.BOTH, side=tk.LEFT)
 
-        self.__label3 = tk.Label(
-            master=self.__frame5,
+        self.__lbl_input_directorio = tk.Label(
+            master=self.__frm_directorio,
             bg="white",
             relief="flat",
             highlightthickness=1,
             highlightbackground="gray",
             anchor=tk.W,
         )
-        self.__label3.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
+        self.__lbl_input_directorio.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
 
-        self.__button2 = tk.Button(
-            master=self.__frame2, text="Aceptar", padx=10, command=self.destroy
+        self.__btn_aceptar = tk.Button(
+            master=self.__frm_inferior, text="Aceptar", padx=10, command=self.destroy
         )
-        self.__button2.pack(side=tk.RIGHT, padx=10, pady=10)
+        self.__btn_aceptar.pack(side=tk.RIGHT, padx=10, pady=10)
 
         self.mainloop()
 
@@ -117,20 +159,32 @@ class Selector(tk.Tk):
         return f"{ancho}x{largo}+{x}+{y}"
 
     def __actualizar_mes(self, _):
-        self.mes = self.__combobox1.get()[0:3]
-        self.mes_int = self.__combobox1.current() + 1
+        self.mes = self.__cbx_mes.get()[0:3]
+        self.mes_int = self.__cbx_mes.current() + 1
 
     def __actualizar_directorio(self):
         self.directorio = filedialog.askdirectory(title="Seleccione el directorio")
-        self.__label3.configure(text=self.directorio)
+        self.__lbl_input_directorio.configure(text=self.directorio)
 
     def __actualizar_year(self, _):
-        self.year = int(self.__combobox2.get())
+        self.year = self.__cbx_year.get()
 
     def __al_cerrar(self):
         self.mes = ""
         self.directorio = ""
         self.destroy()
+
+    def __presionado_enter(self, _):
+        self.destroy()
+
+    def __presionado_escape(self, _):
+        self.__al_cerrar()
+
+    def __actualizar_hoja_potencia(self, _):
+        self.hoja_potencia = self.__txt_hoja_potencia.get().strip()
+
+    def __actualizar_hoja_tension(self, _):
+        self.hoja_tension = self.__txt_hoja_tension.get().strip()
 
 
 class CargaDia:
@@ -138,8 +192,8 @@ class CargaDia:
         self,
         archivo: str,  # Ruta del archivo Excel
         base_datos: ManejoBaseDatos,  # Objeto para manipular la base de datos
-        hoja_tension=18,  # Posición de la hoja de tension en el archivo
-        hoja_potencia=19,  # Posición de la hoja de potencia en el archivo
+        hoja_potencia: int,  # Posición [0,1,...] de la hoja de potencia en el archivo
+        hoja_tension: int,  # Posición [0,1,...] de la hoja de tension en el archivo
         fila_subestaciones=0,  # Fila de las cabeceras de las subestaciones en la hoja de potencia
         col_subestaciones=1,  # Columna en la que empiezan las cabeceras de las subestaciones en la hoja de potencia
         fila_tension_nominal=1,  # Fila de las cabeceras de las subestaciones en la hoja tension
@@ -220,7 +274,7 @@ class CargaDia:
             if not celda.startswith("SUBESTACION"):
                 break
 
-            self.subestaciones_potencia.append(Util.parse_subestacion(celda))
+            self.subestaciones_potencia.append(Util.parse_subestacion_potencia(celda))
 
     def extraer_cols_tension(self, columna):
         cols_subestacion = []
@@ -229,10 +283,14 @@ class CargaDia:
             if not celda:
                 continue
 
-            self.subestaciones_tension.append(Util.parse_subestacion(celda))
             cols_subestacion.append(i + columna)
 
-        cols_subestacion.append(i + 2)
+            try:
+                subestacion = Util.parse_subestacion_tension(celda)
+            except ValueError:
+                break
+
+            self.subestaciones_tension.append(subestacion)
 
         for i in range(len(self.subestaciones_tension)):
             col_ini = cols_subestacion[i]
@@ -251,8 +309,6 @@ class CargaDia:
             )
 
     def cargar_potencias(self, fila, lecturas):
-        print("    Cargando potencias...")
-
         for i, subestacion in enumerate(self.subestaciones_potencia):
             col_ini = self.cols_subestacion[i]
             col_fin = self.cols_subestacion[i + 1] - 3
@@ -279,7 +335,7 @@ class CargaDia:
                     dtype=float,
                     skiprows=fila,
                     nrows=lecturas,
-                )
+                ).fillna(0)
 
                 for k, x in df.iterrows():
                     self.base_datos.insertar_potencias(
@@ -291,8 +347,6 @@ class CargaDia:
                     )
 
     def cargar_tension(self, fila, lecturas):
-        print("    Cargando tensión...")
-
         for i, subestacion in enumerate(self.subestaciones_tension):
             columna = self.cols_tension_nominal[i]
             tension_nominal = self.subestacion_tension_nominal.get(subestacion)
@@ -321,26 +375,44 @@ class CargaDia:
 
 
 class CargaMes:
-    def __init__(self, year, mes, mes_int, directorio):
+    def __init__(self, year, mes, mes_int, directorio, hoja_potencia, hoja_tension):
         if not mes:
-            exit(0)
-
-        if not directorio:
-            exit(0)
+            return
 
         if not year:
-            exit(0)
+            return
 
-        self.year = year
+        if not directorio:
+            return
+
+        if not hoja_potencia:
+            return
+
+        if not hoja_tension:
+            return
+
+        try:
+            int_hoja_potencia = int(hoja_potencia)
+        except:
+            return
+
+        try:
+            int_hoja_tension = int(hoja_tension)
+        except:
+            return
+
+        self.year = int(year)
         self.mes = mes_int
         self.base_datos = ManejoBaseDatos()
-        self.cargar(mes, directorio)
+        self.cargar(mes, directorio, int_hoja_potencia, int_hoja_tension)
         self.horas = Util.generar_horas()
         self.depurar_potencias()
         self.depurar_tensiones()
         self.base_datos.desconectar()
 
-    def cargar(self, mes, directorio):
+    def cargar(self, mes, directorio, hoja_potencia, hoja_tension):
+        print("Cargando datos...")
+
         sub_dirs = [
             os.path.join(directorio, d)
             for d in os.listdir(directorio)
@@ -353,26 +425,33 @@ class CargaMes:
                 for d in os.listdir(sub_dir)
                 if os.path.isfile(os.path.join(sub_dir, d))
                 and d.endswith(".xlsx")
-                and not d.startswith("~")
+                and d.startswith("tse")
+                and not " " in d
             ][0]
-            print(f"Cargando {archivo}...")
 
-            CargaDia(os.path.join(sub_dir, archivo), self.base_datos)
+            CargaDia(
+                os.path.join(sub_dir, archivo),
+                self.base_datos,
+                hoja_potencia - 1,
+                hoja_tension - 1,
+            )
 
         self.base_datos.commit()
 
     def depurar_potencias(self):
-        print("Depurando potencias...")
+        print("Depurando datos...")
 
         alimentadores = self.base_datos.obtener_alimentadores()
 
         for dia in range(7):
-            print("    Día", dia)
             for alimentador in alimentadores:
                 for hora in self.horas:
                     fechas, activas, reactivas = self.base_datos.obtener_potencias(
                         self.year, self.mes, hora, alimentador, dia
                     )
+
+                    if len(fechas) == 0:
+                        continue
 
                     inferior, q2, superior = Util.calcular_quartil(activas)
                     activas = Util.reemplazar(activas, inferior, q2, superior)
@@ -393,17 +472,18 @@ class CargaMes:
         self.base_datos.commit()
 
     def depurar_tensiones(self):
-        print("Depurando tensiones...")
-
         subestaciones = self.base_datos.obtener_subestaciones()
 
         for dia in range(7):
-            print("    Día", dia)
             for subestacion in subestaciones:
                 for hora in self.horas:
                     fechas, tensiones = self.base_datos.obtener_tension(
                         self.year, self.mes, hora, subestacion, dia
                     )
+
+                    if len(fechas) == 0:
+                        continue
+
                     inferior, q2, superior = Util.calcular_quartil(tensiones)
                     tensiones = Util.reemplazar(tensiones, inferior, q2, superior)
 
@@ -421,23 +501,31 @@ class CargaMes:
 
 class Util:
     @staticmethod
-    def parse_subestacion(subestacion):
-        encontrado = re.findall(r"\d+", str(subestacion))
+    def parse_subestacion_potencia(subestacion):
+        encontrado = re.findall(r"\d+", subestacion)
 
         if not encontrado:
-            return subestacion
+            raise Exception(
+                "No se encuentra el número de subestacion en '" + subestacion + "'"
+            )
 
         return int(encontrado[0])
 
     @staticmethod
+    def parse_subestacion_tension(subestacion):
+        if isinstance(subestacion, int):
+            return subestacion
+
+        return int(subestacion[3:])
+
+    @staticmethod
     def parse_alimentador(alimentador):
-        if isinstance(alimentador, float):
-            return f"{alimentador:04.0f}"
+        try:
+            int_alimentador = int(alimentador)
+        except:
+            return re.sub(r"[0-9\s:]", "", alimentador.upper())
 
-        if isinstance(alimentador, int):
-            return f"{alimentador:04}"
-
-        return alimentador
+        return f"{int_alimentador:04.0f}"
 
     @staticmethod
     def parse_tension(tension):
@@ -490,7 +578,14 @@ class Util:
 
 selector = Selector()
 t1 = time.time()
-CargaMes(selector.year, selector.mes, selector.mes_int, selector.directorio)
+CargaMes(
+    selector.year,
+    selector.mes,
+    selector.mes_int,
+    selector.directorio,
+    selector.hoja_potencia,
+    selector.hoja_tension,
+)
 t2 = time.time()
 
-print(f"{round((t2-t1)/60,1)} m")
+print(f"Proceso completado exitosamente en {(t2-t1)/60:.2f} m")
