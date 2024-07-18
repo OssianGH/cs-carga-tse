@@ -13,7 +13,7 @@ class Selector(tk.Tk):
     """Clase/Módulo, que hereda de una interfaz, el cual se encarga de recibir y
     almacenar, en atributos de clase, los parámetros del script: el mes, el año, el
     directorio con los archivos de análisis y los números de hoja en las que se
-    encuentran las lecturas de potencia y tension en dichos archivos.
+    encuentran las lecturas de potencia y tensión en dichos archivos.
     """
 
     def __init__(self):
@@ -24,6 +24,7 @@ class Selector(tk.Tk):
         self.year = None
         self.hoja_potencia = None
         self.hoja_tension = None
+        self.__placeholder = "Ingresar número de hoja a procesar..."
         self.__meses = [
             "Enero",
             "Febrero",
@@ -87,7 +88,7 @@ class Selector(tk.Tk):
         self.__lbl_hoja_potencia = tk.Label(
             master=self.__frm_labels,
             bg="#dff9fb",
-            text="Hoja de potencia:",
+            text="Número de hoja de potencia:",
             pady=3.8,
             anchor=tk.W,
         )
@@ -98,14 +99,18 @@ class Selector(tk.Tk):
             relief="flat",
             highlightthickness=1,
             highlightbackground="gray",
+            fg="gray",
         )
+        self.__txt_hoja_potencia.insert(0, self.__placeholder)
         self.__txt_hoja_potencia.pack(fill=tk.X, side=tk.TOP, expand=True)
         self.__txt_hoja_potencia.bind("<KeyRelease>", self.__actualizar_hoja_potencia)
+        self.__txt_hoja_potencia.bind("<FocusIn>", self.__al_poner_foco)
+        self.__txt_hoja_potencia.bind("<FocusOut>", self.__al_quitar_foco)
 
         self.__lbl_hoja_tension = tk.Label(
             master=self.__frm_labels,
             bg="#dff9fb",
-            text="Hoja de tension:",
+            text="Número de hoja de tension:",
             pady=3.8,
             anchor=tk.W,
         )
@@ -116,9 +121,13 @@ class Selector(tk.Tk):
             relief="flat",
             highlightthickness=1,
             highlightbackground="gray",
+            fg="gray",
         )
+        self.__txt_hoja_tension.insert(0, self.__placeholder)
         self.__txt_hoja_tension.pack(fill=tk.X, side=tk.TOP, expand=True)
         self.__txt_hoja_tension.bind("<KeyRelease>", self.__actualizar_hoja_tension)
+        self.__txt_hoja_tension.bind("<FocusIn>", self.__al_poner_foco)
+        self.__txt_hoja_tension.bind("<FocusOut>", self.__al_quitar_foco)
 
         self.__lbl_directorio = tk.Label(
             master=self.__frm_labels,
@@ -215,6 +224,27 @@ class Selector(tk.Tk):
         ingresado es almacenado, eliminando espacios al principio y al final.
         """
         self.hoja_tension = self.__txt_hoja_tension.get().strip()
+
+    def __al_poner_foco(self, event):
+        """Se ejecuta al enfocar el cursor de texto en `__txt_hoja_potencia` o
+        `__txt_hoja_tension`. Si el texto en ese momento es el placeholder, borra el
+        mismo.
+        """
+        entry = event.widget
+
+        if entry.get() == self.__placeholder:
+            entry.config(fg="black")
+            entry.delete(0, "end")
+
+    def __al_quitar_foco(self, event):
+        """Se ejecuta al quitar el cursor de texto de `__txt_hoja_tension` o
+        `__txt_hoja_potencia`. Si está vacío en ese momento, escribe el placeholder.
+        """
+        entry = event.widget
+
+        if entry.get() == "":
+            entry.config(fg="gray")
+            entry.insert(0, self.__placeholder)
 
 
 class CargaDia:
@@ -420,11 +450,14 @@ class CargaDia:
 
             # Define un diccionario (tension_nominal: columna) para cada encabezado de
             # tension nominal en la tabla de la subestación actual.
-            tension_nom = {
-                Util.parse_tension(self.tensiones_nominal_raw[j]): j
-                for j in range(col_ini, col_fin)
-                if self.tensiones_nominal_raw[j]
-            }
+            try:
+                tension_nom = {
+                    Util.parse_tension(self.tensiones_nominal_raw[j]): j
+                    for j in range(col_ini, col_fin)
+                    if self.tensiones_nominal_raw[j]
+                }
+            except Exception as e:
+                print(e, "\narchvivo: ", self.archivo)
 
             # Agrega a la lista de columnas de tensiones nominales, la columna que
             # contenga la tensión nominal de la subestación actual. Es decir,
@@ -486,13 +519,28 @@ class CargaDia:
 
                 # Agrega cada lectura a la base de datos.
                 for k, x in df.iterrows():
-                    self.base_datos.insertar_potencias(
-                        self.fecha,
-                        self.horas[k],
-                        alimentador,
-                        x["potencia_activa"],
-                        x["potencia_reactiva"],
-                    )
+                    try:
+                        self.base_datos.insertar_potencias(
+                            self.fecha,
+                            self.horas[k],
+                            alimentador,
+                            x["potencia_activa"],
+                            x["potencia_reactiva"],
+                        )
+                    except:
+                        print(
+                            "Error al insertar en la tabla de potencias:",
+                            f"  Fecha: {self.fecha.strftime('%d/%m/%Y')}",
+                            f"  Hora: {self.horas[k]}",
+                            f"  Alimentador: {alimentador}",
+                            f"  Subestacion: {subestacion}",
+                            f"  Potencia activa: {x['potencia_activa']}",
+                            f"  Potencia reactiva: {x['potencia_reactiva']}",
+                            f"Revisar hoja {self.hoja_potencia + 1} del archivo ",
+                            f"{self.archivo}.",
+                            sep="\n",
+                        )
+                        exit(1)
 
     def cargar_tension(self, fila, lecturas):
         """Carga en la base de datos cada lectura de tensión de servicio para cada
@@ -527,12 +575,25 @@ class CargaDia:
 
             # Agrega cada lectura a la base de datos.
             for j, x in df.iterrows():
-                self.base_datos.insertar_tension(
-                    self.fecha,
-                    self.horas[j],
-                    subestacion,
-                    x["tension_servicio"],
-                )
+                try:
+                    self.base_datos.insertar_tension(
+                        self.fecha,
+                        self.horas[j],
+                        subestacion,
+                        x["tension_servicio"],
+                    )
+                except:
+                    print(
+                        "Error al insertar en la tabla de tension:",
+                        f"  Fecha: {self.fecha.strftime('%d/%m/%Y')}",
+                        f"  Hora: {self.horas[j]}",
+                        f"  Subestacion: {subestacion}",
+                        f"  Tensión de servicio: {x['tension_servicio']}",
+                        f"Revisar hoja {self.hoja_tension + 1} del archivo ",
+                        f"{self.archivo}.",
+                        sep="\n",
+                    )
+                    exit(1)
 
 
 class CargaMes:
@@ -597,21 +658,26 @@ class CargaMes:
         sub_dirs = [
             os.path.join(directorio, d)
             for d in os.listdir(directorio)
-            if os.path.isdir(os.path.join(directorio, d)) and d.startswith(mes)
+            if os.path.isdir(os.path.join(directorio, d))
+            and d.lower().startswith(mes.lower())
         ]
 
         # Itera por cada elemento dentro de cada carpeta de cada mes.
         for sub_dir in sub_dirs:
             # Selecciona el primer elemento que sea un archivo, que sea xlsx, que
             # empiece con 'tse' y que no contenga espacios en la carpeta actual.
-            archivo = [
-                d
-                for d in os.listdir(sub_dir)
-                if os.path.isfile(os.path.join(sub_dir, d))
-                and d.endswith(".xlsx")
-                and d.startswith("tse")
-                and not " " in d
-            ][0]
+            try:
+                archivo = [
+                    d
+                    for d in os.listdir(sub_dir)
+                    if os.path.isfile(os.path.join(sub_dir, d))
+                    and d.lower().endswith(".xlsx")
+                    and d.lower().startswith("tse")
+                    and not " " in d
+                ][0]
+            except:
+                print(f"Error: No se encontró el archivo esperado en {sub_dir}.")
+                exit(1)
 
             print(archivo)
 
@@ -733,7 +799,7 @@ class Util:
 
         if not encontrado:
             raise Exception(
-                "No se encuentra el número de subestacion en '" + subestacion + "'"
+                f"Error: No se encuentra el número de subestacion en '{subestacion}'."
             )
 
         return int(encontrado[0])
@@ -773,7 +839,13 @@ class Util:
         """Transforma el texto en la cabecera de tension nominal a un número de tensión
         en miles.
         """
-        tension = tension.lower()
+        try:
+            tension = tension.lower()
+        except:
+            raise Exception(
+                f"Error: No se puede inferir el valor de tensión a partir de {tension}"
+                + " indique si es V o kV."
+            )
 
         # Busca el número entero o decimal en la entrada.
         encontrado = re.findall(r"\d+\.\d+|\d+", tension)
@@ -838,16 +910,16 @@ class Util:
         return datos
 
 
-selector = Selector()
-t1 = time.time()
-CargaMes(
-    selector.year,
-    selector.mes,
-    selector.mes_int,
-    selector.directorio,
-    selector.hoja_potencia,
-    selector.hoja_tension,
-)
-t2 = time.time()
+# selector = Selector()
+# t1 = time.time()
+# CargaMes(
+#     selector.year,
+#     selector.mes,
+#     selector.mes_int,
+#     selector.directorio,
+#     selector.hoja_potencia,
+#     selector.hoja_tension,
+# )
+# t2 = time.time()
 
-print(f"Proceso completado exitosamente en {(t2-t1)/60:.2f} m")
+# print(f"Proceso completado exitosamente en {(t2-t1)/60:.2f} m")
