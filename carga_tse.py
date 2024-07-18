@@ -247,6 +247,247 @@ class Selector(tk.Tk):
             entry.insert(0, self.__placeholder)
 
 
+class ManejoBaseDatos:
+    """Clase/Módulo el cual se encarga de realizar operaciones con la base de datos."""
+
+    def __init__(self):
+        self.__conectar()
+
+    def __conectar(self):
+        """Realiza la conexión con la base de datos y almacena tanto dicha conexión,
+        así como el cursor de la misma.
+        """
+        driver = "{PostgreSQL Unicode}"
+        server = "172.19.128.153"
+        puerto = "5432"
+        base_datos = "tse"
+        uid = "administrador"
+        pwd = "Ditic*2023tse"
+
+        self.__conexion = pyodbc.connect(
+            f"DRIVER={driver};SERVER={server};PORT={puerto};DATABASE={base_datos};"
+            + f"UID={uid};PWD={pwd};"
+        )
+
+        self.__cursor = self.__conexion.cursor()
+
+    def obtener_tensiones_nominal(self):
+        """Consulta todas las subestaciones y devuelve un diccionario con las tensiones
+        nominales de cada subestación (id_subestacion: tension_nominal).
+        """
+        sql = "SELECT * FROM subestacion;"
+        self.__cursor.execute(sql)
+
+        result = {}
+        for registro in self.__cursor:
+            result[registro.id_subestacion] = registro.tension_nominal
+
+        return result
+
+    def obtener_potencias(self, year, mes, hora, alimentador, dia_semana):
+        """Consulta las lecturas de potencia de un alimentador, en un día de la semana
+        específico, a una hora específica, en un mes específico, y devuelve una tupla
+        con las fechas de las lecturas encontradas, y las lecturas en sí.
+        """
+        sql = (
+            "SELECT fecha, potencia_activa, potencia_reactiva FROM potencia "
+            + "WHERE fecha >= ? AND fecha < ? "
+            + "AND hora = ? AND alimentador = ? AND dia_semana = ?;"
+        )
+        fechas = []
+        activas = []
+        reactivas = []
+
+        # Para seleccionar registros en un mes se define un rango de fechas cuyo límite
+        # inferior consiste en el año y el primer día del mes.
+        if mes == 12:
+            # Si el mes es 12, el límite superior consiste en el siguiente año y el
+            # primer día del primer mes sin incluirlo.
+            year_fin = year + 1
+            mes_fin = 1
+        else:
+            # Si es cualquier otro mes, el límite superior consiste en el año y el
+            # primer día del siguiente mes sin incluirlo.
+            year_fin = year
+            mes_fin = mes + 1
+
+        # Establece los limites inferior y superior, formateando el mes con dos cifras.
+        fecha_ini = f"'{year}-{mes:02}-01'"
+        fecha_fin = f"'{year_fin}-{mes_fin:02}-01'"
+
+        self.__cursor.execute(sql, fecha_ini, fecha_fin, hora, alimentador, dia_semana)
+
+        for registro in self.__cursor:
+            # Agrega cada fecha y lecturas de cada registro encontrado a cada lista
+            # individual.
+            fechas.append(registro.fecha)
+            activas.append(registro.potencia_activa)
+            reactivas.append(registro.potencia_reactiva)
+
+        return fechas, activas, reactivas
+
+    def obtener_tension(self, year, mes, hora, id_subestacion, dia_semana):
+        """Consulta las lecturas de tensión de una subestación, en un día de la semana
+        específico, a una hora específica, en un mes específico, y devuelve una tupla
+        con las fechas de las lecturas encontradas, y las lecturas en sí.
+        """
+        sql = (
+            "SELECT fecha, tension_servicio FROM tension "
+            + "WHERE fecha >= ? AND fecha < ? "
+            + "AND hora = ? AND id_subestacion = ? AND dia_semana = ?;"
+        )
+        fechas = []
+        tensiones = []
+
+        # Para seleccionar registros en un mes se define un rango de fechas cuyo límite
+        # inferior consiste en el año y el primer día del mes.
+        if mes == 12:
+            # Si el mes es 12, el límite superior consiste en el siguiente año y el
+            # primer día del primer mes sin incluirlo.
+            year_fin = year + 1
+            mes_fin = 1
+        else:
+            # Si es cualquier otro mes, el límite superior consiste en el año y el
+            # primer día del siguiente mes sin incluirlo.
+            year_fin = year
+            mes_fin = mes + 1
+
+        # Establece los limites inferior y superior, formateando el mes con dos cifras.
+        fecha_ini = f"'{year}-{mes:02}-01'"
+        fecha_fin = f"'{year_fin}-{mes_fin:02}-01'"
+
+        self.__cursor.execute(
+            sql, fecha_ini, fecha_fin, hora, id_subestacion, dia_semana
+        )
+
+        for registro in self.__cursor:
+            # Agrega cada fecha y lectura de cada registro encontrado a cada lista
+            # individual.
+            fechas.append(registro.fecha)
+            tensiones.append(registro.tension_servicio)
+
+        return fechas, tensiones
+
+    def obtener_alimentadores(self):
+        """Consulta y devuelve una lista con todos los alimentadores."""
+
+        sql = "SELECT alimentador FROM sube_alim;"
+
+        self.__cursor.execute(sql)
+
+        return [registro.alimentador for registro in self.__cursor]
+
+    def obtener_subestaciones(self):
+        """Consulta y devuelve una lista con todas las subestaciones."""
+
+        sql = "SELECT id_subestacion FROM subestacion;"
+
+        self.__cursor.execute(sql)
+
+        return [registro.id_subestacion for registro in self.__cursor]
+
+    def insertar_potencias(
+        self, fecha, hora, alimentador, potencia_activa, potencia_reactiva
+    ):
+        """Inserta una lectura de potencia activa y reactiva, de un alimentador, a una
+        fecha y hora específica, en la base de datos.
+        """
+        sql = (
+            "INSERT INTO potencia (fecha, hora, alimentador, potencia_activa, "
+            + "potencia_reactiva) VALUES (?, ?, ?, ?, ?);"
+        )
+        self.__cursor.execute(
+            sql,
+            fecha,
+            hora,
+            alimentador,
+            potencia_activa,
+            potencia_reactiva,
+        )
+
+    def insertar_potencias_dep(
+        self, fecha, hora, alimentador, dia_semana, potencia_activa, potencia_reactiva
+    ):
+        """Inserta una lectura depurada de potencia activa y reactiva, de un
+        alimentador, a una fecha y hora específica, en la base de datos.
+        """
+        sql = (
+            "INSERT INTO potencia_dep (fecha, hora, alimentador, dia_semana, "
+            + "potencia_activa, potencia_reactiva) VALUES (?, ?, ?, ?, ?, ?);"
+        )
+        self.__cursor.execute(
+            sql,
+            fecha,
+            hora,
+            alimentador,
+            dia_semana,
+            potencia_activa,
+            potencia_reactiva,
+        )
+
+    def insertar_tension(self, fecha, hora, id_subestacion, tension_servicio):
+        """Inserta una lectura de tensión, de una subestación, a una fecha y hora
+        específica, en la base de datos.
+        """
+        sql = (
+            "INSERT INTO tension (fecha, hora, id_subestacion, tension_servicio) "
+            + "VALUES (?, ?, ?, ?);"
+        )
+        self.__cursor.execute(
+            sql,
+            fecha,
+            hora,
+            id_subestacion,
+            tension_servicio,
+        )
+
+    def insertar_tension_dep(
+        self, fecha, hora, id_subestacion, dia_semana, tension_servicio
+    ):
+        """Inserta una lectura depurada de tensión, de una subestación, a una fecha y
+        hora específica, en la base de datos.
+        """
+        sql = (
+            "INSERT INTO tension_dep (fecha, hora, id_subestacion, dia_semana, "
+            + "tension_servicio) VALUES (?, ?, ?, ?, ?);"
+        )
+        self.__cursor.execute(
+            sql,
+            fecha,
+            hora,
+            id_subestacion,
+            dia_semana,
+            tension_servicio,
+        )
+
+    def insertar_alimentador(self, id_subestacion, alimentador):
+        """Registra un alimentador y la subestación a la que pertenece, si dicho
+        alimentador no existe aún en la base de datos.
+        """
+        # Busca el alimentador a registrar.
+        sql = "SELECT 1 FROM sube_alim WHERE alimentador = ?;"
+        self.__cursor.execute(sql, alimentador)
+
+        if self.__cursor.fetchone():
+            # Si existe, retorna la función.
+            return
+
+        # Si no existe, inserta el alimentador y la subestación a la que pertenece.
+        sql = "INSERT INTO sube_alim (id_subestacion, alimentador) VALUES (?, ?);"
+        self.__cursor.execute(sql, id_subestacion, alimentador)
+
+    def commit(self):
+        """Confirma los cambios en la base de datos."""
+
+        self.__cursor.commit()
+
+    def desconectar(self):
+        """Desconecta el cursor y la conexión con la base de datos."""
+
+        self.__cursor.close()
+        self.__conexion.close()
+
+
 class CargaDia:
     """Clase/Módulo el cual se encarga de la lectura de archivos con lecturas de
     potencia y tensión, interpretando el número y posiciones de tablas de forma
@@ -910,16 +1151,16 @@ class Util:
         return datos
 
 
-# selector = Selector()
-# t1 = time.time()
-# CargaMes(
-#     selector.year,
-#     selector.mes,
-#     selector.mes_int,
-#     selector.directorio,
-#     selector.hoja_potencia,
-#     selector.hoja_tension,
-# )
-# t2 = time.time()
+selector = Selector()
+t1 = time.time()
+CargaMes(
+    selector.year,
+    selector.mes,
+    selector.mes_int,
+    selector.directorio,
+    selector.hoja_potencia,
+    selector.hoja_tension,
+)
+t2 = time.time()
 
-# print(f"Proceso completado exitosamente en {(t2-t1)/60:.2f} m")
+print(f"Proceso completado exitosamente en {(t2-t1)/60:.2f} m")
